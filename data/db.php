@@ -1,4 +1,8 @@
 <?php
+// 防止重复加载
+if (defined('DB_LOADED')) return;
+define('DB_LOADED', true);
+
 require __DIR__ . '/config.php';
 
 // ========== PHP 5.3/5.4 兼容层：password_hash / password_verify ==========
