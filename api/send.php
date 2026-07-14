@@ -1,10 +1,6 @@
 <?php
 require __DIR__ . '/../data/db.php';
-require __DIR__ . '/../vendor/PHPMailer/PHPMailer.php';
-require __DIR__ . '/../vendor/PHPMailer/SMTP.php';
-require __DIR__ . '/../vendor/PHPMailer/Exception.php';
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+require __DIR__ . '/../vendor/PHPMailer/PHPMailerAutoload.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -107,7 +103,8 @@ foreach ($chunks as $chunk) {
         $mail->SMTPAuth = true;
         $mail->Username = $account['user'];
         $mail->Password = $account['pwd'];
-        $mail->SMTPSecure = $account['port'] == 465 ? PHPMailer::ENCRYPTION_SMTPS : PHPMailer::ENCRYPTION_STARTTLS;
+        // PHPMailer 5.x 用 'ssl' 或 'tls' 字符串
+        $mail->SMTPSecure = $account['port'] == 465 ? 'ssl' : 'tls';
         $mail->Port = $account['port'];
         $mail->CharSet = 'UTF-8';
         $mail->setFrom(!empty($account['from_addr']) ? $account['from_addr'] : $account['user'], !empty($account['from_name']) ? $account['from_name'] : 'Mailer');
@@ -127,7 +124,7 @@ foreach ($chunks as $chunk) {
                 try {
                     $mail->send();
                     $sent = true;
-                } catch (Exception $e) {
+                } catch (phpmailerException $e) {
                     $error_msg = $e->getMessage();
                     $retry++;
                     if ($retry < $retry_times) {
@@ -156,7 +153,7 @@ foreach ($chunks as $chunk) {
         $stmt = $db->prepare("UPDATE {$prefix}accounts SET send_count = send_count + ? WHERE id = ?");
         $stmt->execute(array(count($chunk), $account['id']));
 
-    } catch (Exception $e) {
+    } catch (phpmailerException $e) {
         $fail += count($chunk);
         foreach ($chunk as $email) {
             $stmt = $db->prepare("INSERT INTO {$prefix}logs (template_id, account_id, recipient, status, error, batch_id) VALUES (?, ?, ?, ?, ?, ?)");
