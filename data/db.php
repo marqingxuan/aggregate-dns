@@ -5,6 +5,66 @@ define('DB_LOADED', true);
 
 require __DIR__ . '/config.php';
 
+// ========== 全局调试日志 ==========
+$SYS_LOG_FILE = __DIR__ . '/runtime.log';
+if (!function_exists('sys_log')) {
+    function sys_log($msg) {
+        global $SYS_LOG_FILE;
+        $line = '[' . date('Y-m-d H:i:s') . '] ' . $msg . PHP_EOL;
+        file_put_contents($SYS_LOG_FILE, $line, FILE_APPEND | LOCK_EX);
+    }
+}
+
+// 注册全局错误处理器
+if (!function_exists('sys_error_handler')) {
+    function sys_error_handler($errno, $errstr, $errfile, $errline) {
+        $types = array(
+            E_ERROR             => 'Fatal',
+            E_WARNING           => 'Warning',
+            E_PARSE             => 'Parse',
+            E_NOTICE            => 'Notice',
+            E_CORE_ERROR        => 'CoreError',
+            E_CORE_WARNING      => 'CoreWarning',
+            E_COMPILE_ERROR     => 'CompileError',
+            E_COMPILE_WARNING   => 'CompileWarning',
+            E_USER_ERROR        => 'UserError',
+            E_USER_WARNING      => 'UserWarning',
+            E_USER_NOTICE       => 'UserNotice',
+            E_STRICT            => 'Strict',
+            E_RECOVERABLE_ERROR => 'Recoverable',
+            E_DEPRECATED        => 'Deprecated',
+            E_USER_DEPRECATED   => 'UserDeprecated',
+        );
+        $type = isset($types[$errno]) ? $types[$errno] : 'Unknown';
+        sys_log("[{$type}] {$errstr} in {$errfile}:{$errline}");
+        return false; // 继续执行 PHP 默认的错误处理
+    }
+    set_error_handler('sys_error_handler');
+}
+
+// 注册全局异常处理器
+if (!function_exists('sys_exception_handler')) {
+    function sys_exception_handler($e) {
+        sys_log('[Exception] ' . get_class($e) . ': ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    }
+    set_exception_handler('sys_exception_handler');
+}
+
+// 注册 shutdown 函数捕获 Fatal Error
+if (!function_exists('sys_shutdown_handler')) {
+    function sys_shutdown_handler() {
+        $error = error_get_last();
+        if ($error && in_array($error['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR))) {
+            sys_log('[Shutdown] ' . $error['message'] . ' in ' . $error['file'] . ':' . $error['line']);
+        }
+    }
+    register_shutdown_function('sys_shutdown_handler');
+}
+
+// 同时让 PHP 运行时错误写入同一文件
+ini_set('log_errors', 1);
+ini_set('error_log', $SYS_LOG_FILE);
+
 // ========== PHP 5.3/5.4 兼容层：password_hash / password_verify ==========
 if (!function_exists('password_hash')) {
     function password_hash($password, $algo, $options = array()) {

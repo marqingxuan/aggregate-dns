@@ -4,7 +4,22 @@ require __DIR__ . '/../vendor/PHPMailer/PHPMailerAutoload.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
+// ========== 调试日志 ==========
+$logFile = __DIR__ . '/1.log';
+function log_msg($msg) {
+    global $logFile;
+    $line = '[' . date('Y-m-d H:i:s') . '] ' . $msg . PHP_EOL;
+    file_put_contents($logFile, $line, FILE_APPEND | LOCK_EX);
+}
+// 同时让 PHP 运行时错误也写入同一文件
+ini_set('log_errors', 1);
+ini_set('error_log', $logFile);
+
+log_msg('========== 请求开始 ==========');
+log_msg('POST数据: ' . json_encode($_POST));
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    log_msg('错误: 非法请求方式 ' . $_SERVER['REQUEST_METHOD']);
     jsonResponse(array('code' => 1, 'msg' => '非法请求'));
 }
 
@@ -48,8 +63,10 @@ if (!empty($recipients)) {
 
 $emails = array_unique($emails);
 if (empty($emails)) {
+    log_msg('错误: 没有有效的收件人');
     jsonResponse(array('code' => 1, 'msg' => '没有有效的收件人'));
 }
+log_msg('有效收件人数量: ' . count($emails));
 
 // 黑名单过滤
 $blacklist = array();
@@ -59,26 +76,32 @@ foreach ($stmt->fetchAll() as $row) {
 }
 $emails = array_diff($emails, $blacklist);
 if (empty($emails)) {
+    log_msg('错误: 所有收件人均在黑名单中');
     jsonResponse(array('code' => 1, 'msg' => '所有收件人均在黑名单中'));
 }
+log_msg('过滤黑名单后收件人数量: ' . count($emails));
 
 // 获取可用账号（轮询）
 $stmt = $db->query("SELECT * FROM {$prefix}accounts WHERE status = 1 ORDER BY send_count ASC");
 $accounts = $stmt->fetchAll();
 if (empty($accounts)) {
+    log_msg('错误: 没有可用的SMTP账号');
     jsonResponse(array('code' => 1, 'msg' => '没有可用的SMTP账号'));
 }
+log_msg('可用SMTP账号数量: ' . count($accounts));
 
 // 系统设置
 $send_interval = intval(getSetting($db, 'send_interval', '1'));
 $batch_size = intval(getSetting($db, 'batch_size', '10'));
 $retry_times = intval(getSetting($db, 'retry_times', '3'));
+log_msg("系统设置: 间隔={$send_interval}s, 每批={$batch_size}, 重试={$retry_times}");
 
 $batch_id = uniqid('batch_');
 $total = count($emails);
 $success = 0;
 $fail = 0;
 $results = array();
+log_msg("批次ID: {$batch_id}, 总计发送: {$total}");
 
 // 分批发送
 $chunks = array_chunk($emails, $batch_size);
