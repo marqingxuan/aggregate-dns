@@ -2,76 +2,269 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>邮箱行转PHP $all_emails 数组格式化工具</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>邮箱格式化与QQ号转邮箱工具</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;font-family:Microsoft Yahei,Consolas}
-body{background:#f3f4f6;padding:30px;max-width:1000px;margin:0 auto}
-.box{background:#fff;padding:24px;border-radius:8px;box-shadow:0 1px 8px #00000012;margin-bottom:20px}
-h3{margin-bottom:12px;color:#222}
-.tip{color:#666;font-size:14px;margin-bottom:10px}
-textarea{width:100%;min-height:240px;padding:12px;border:1px solid #ddd;border-radius:6px;font-size:14px;white-space:pre}
-.btns{margin:14px 0;display:flex;gap:10px}
-button{padding:10px 20px;border:none;border-radius:5px;font-size:14px;cursor:pointer}
-#trans{background:#1677ff;color:#fff}
-#clear{background:#eee;color:#333}
-#copyTip{color:#00a854;margin-top:8px;display:none}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif}
+body{background:#f5f7fa;padding:20px;min-height:100vh}
+.container{max-width:1100px;margin:0 auto}
+h1{text-align:center;color:#1a1a2e;margin-bottom:6px;font-size:22px}
+.subtitle{text-align:center;color:#888;font-size:13px;margin-bottom:20px}
+.card{background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:16px}
+.card h3{margin-bottom:10px;color:#333;font-size:15px;display:flex;align-items:center;gap:6px}
+.tip{color:#888;font-size:13px;margin-bottom:10px;line-height:1.6}
+.tip code{background:#f0f0f0;padding:2px 6px;border-radius:4px;font-size:12px;color:#666}
+textarea{width:100%;min-height:180px;padding:12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;font-family:Consolas,monospace;transition:border-color .2s}
+textarea:focus{outline:none;border-color:#69a7ff}
+.toolbar{display:flex;gap:10px;margin:12px 0;flex-wrap:wrap;align-items:center}
+.toolbar label{font-size:13px;color:#555;display:flex;align-items:center;gap:4px;cursor:pointer}
+.toolbar input[type="checkbox"]{cursor:pointer}
+.btn{padding:10px 18px;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition:opacity .2s}
+.btn-primary{background:#69a7ff;color:#fff}
+.btn-success{background:#51cf66;color:#fff}
+.btn-warning{background:#ffa94d;color:#fff}
+.btn-secondary{background:#e9ecef;color:#555}
+.btn:hover{opacity:.9}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.stats{display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap}
+.stat-item{background:#f8fafc;padding:8px 14px;border-radius:6px;font-size:13px;color:#555}
+.stat-item strong{color:#69a7ff;font-size:16px;margin-right:4px}
+.format-btns{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.format-btn{padding:6px 14px;border:1px solid #e0e0e0;background:#fff;border-radius:5px;cursor:pointer;font-size:13px;transition:all .2s}
+.format-btn:hover{border-color:#69a7ff;color:#69a7ff}
+.format-btn.active{background:#69a7ff;color:#fff;border-color:#69a7ff}
+.footer{text-align:center;padding:16px;color:#aaa;font-size:13px}
+.footer a{color:#69a7ff;text-decoration:none}
+.copy-tip{color:#2e7d32;font-size:13px;margin-top:8px;display:none;align-items:center;gap:4px}
+.copy-tip.show{display:flex}
+@media(max-width:600px){.toolbar{flex-direction:column;align-items:flex-start}.stats{flex-direction:column;gap:8px}}
 </style>
 </head>
 <body>
-<div class="box">
-    <h3>输入区：每行一个邮箱</h3>
-    <p class="tip">粘贴所有单行@qq.com邮箱，一行一条</p>
-    <textarea id="input"></textarea>
-    <div class="btns">
-        <button id="trans">转换为PHP数组（5个一行）</button>
-        <button id="clear">清空内容</button>
+<div class="container">
+    <h1>邮箱格式化与QQ号转邮箱工具</h1>
+    <p class="subtitle">支持QQ号转QQ邮箱、多格式输入、去重、过滤、多种输出格式</p>
+
+    <div class="card">
+        <h3>输入区</h3>
+        <p class="tip">
+            支持多种格式：每行一个、逗号分隔、空格分隔、分号分隔，可混合使用。<br>
+            输入纯数字会自动转换为 <code>QQ号@qq.com</code>，已有邮箱格式保持不变。
+        </p>
+        <textarea id="input" placeholder="123456789
+987654321@qq.com
+111111,222222,333333@qq.com"></textarea>
+        <div class="toolbar">
+            <label><input type="checkbox" id="autoConvert" checked> 纯数字自动转QQ邮箱</label>
+            <label><input type="checkbox" id="removeDup" checked> 自动去重</label>
+            <label><input type="checkbox" id="onlyQQ"> 仅保留QQ邮箱</label>
+            <label><input type="checkbox" id="validateEmail"> 验证邮箱格式</label>
+        </div>
+        <div class="toolbar">
+            <button class="btn btn-primary" id="btnTrans">转换/格式化</button>
+            <button class="btn btn-success" id="btnCopy">复制结果</button>
+            <button class="btn btn-warning" id="btnClear">清空</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>输出结果</h3>
+        <div class="stats" id="stats">
+            <div class="stat-item"><strong id="statTotal">0</strong>总数量</div>
+            <div class="stat-item"><strong id="statValid">0</strong>有效邮箱</div>
+            <div class="stat-item"><strong id="statQQ">0</strong>QQ邮箱</div>
+            <div class="stat-item"><strong id="statDup">0</strong>重复/过滤</div>
+            <div class="stat-item"><strong id="statInvalid">0</strong>格式错误</div>
+        </div>
+        <div class="format-btns">
+            <button class="format-btn active" data-format="line">每行一个</button>
+            <button class="format-btn" data-format="comma">逗号分隔</button>
+            <button class="format-btn" data-format="php5">PHP数组(5个/行)</button>
+            <button class="format-btn" data-format="php1">PHP数组(1个/行)</button>
+            <button class="format-btn" data-format="json">JSON数组</button>
+        </div>
+        <textarea id="output" readonly></textarea>
+        <div class="copy-tip" id="copyTip">✅ 已复制到剪贴板</div>
+    </div>
+
+    <div class="footer">
+        <a href="index.html">返回邮件群发</a> |
+        <a href="admin/">管理后台</a>
     </div>
 </div>
 
-<div class="box">
-    <h3>输出结果（直接复制替换config.php的$all_emails）</h3>
-    <textarea id="output" readonly></textarea>
-    <div id="copyTip">✅ 已自动复制到剪贴板</div>
-</div>
-
 <script>
-const input = document.getElementById('input');
-const output = document.getElementById('output');
-const transBtn = document.getElementById('trans');
-const clearBtn = document.getElementById('clear');
-const copyTip = document.getElementById('copyTip');
+const $ = id => document.getElementById(id);
+let currentFormat = 'line';
+let currentEmails = [];
 
-transBtn.onclick = ()=>{
-    let raw = input.value.trim();
-    if(!raw){
-        alert('请粘贴邮箱列表！');
+// 解析输入
+function parseInput(text) {
+    // 支持换行、逗号、分号、空格、中文逗号分隔
+    return text.split(/[\n\r,;，\s]+/).map(s => s.trim()).filter(s => s.length > 0);
+}
+
+// 检查是否为纯QQ号（纯数字，5-11位）
+function isQQNumber(str) {
+    return /^\d{5,11}$/.test(str);
+}
+
+// 简单邮箱格式校验
+function isValidEmail(str) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str);
+}
+
+// 是否为QQ邮箱
+function isQQEmail(str) {
+    return /^\d+@qq\.com$/i.test(str);
+}
+
+// 转换处理
+function process() {
+    const raw = $('input').value;
+    if (!raw.trim()) {
+        $('output').value = '';
+        updateStats(0,0,0,0,0);
         return;
     }
-    // 分割每行，过滤空行
-    let lines = raw.split(/\r?\n/).filter(item=>item.trim()!=='');
-    // 包裹双引号
-    let arr = lines.map(item=>`"${item.trim()}"`);
-    // 5个一行拼接
-    let resStr = '$all_emails = [\n';
-    for(let i=0;i<arr.length;i+=5){
-        let slice = arr.slice(i,i+5);
-        resStr += '    ' + slice.join(',') + ',\n';
+
+    const autoConvert = $('autoConvert').checked;
+    const removeDup = $('removeDup').checked;
+    const onlyQQ = $('onlyQQ').checked;
+    const validate = $('validateEmail').checked;
+
+    let items = parseInput(raw);
+    let total = items.length;
+    let invalid = 0;
+    let converted = 0;
+    let emails = [];
+    let seen = new Set();
+
+    for (let item of items) {
+        let email = item;
+
+        // 纯数字转QQ邮箱
+        if (autoConvert && isQQNumber(item)) {
+            email = item + '@qq.com';
+            converted++;
+        }
+
+        // 验证格式
+        if (validate && !isValidEmail(email)) {
+            invalid++;
+            continue;
+        }
+
+        // 仅保留QQ邮箱
+        if (onlyQQ && !isQQEmail(email)) {
+            continue;
+        }
+
+        // 去重
+        if (removeDup) {
+            let key = email.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+        }
+
+        emails.push(email);
     }
-    resStr += '];';
-    output.value = resStr;
 
-    // 自动复制
-    output.select();
-    document.execCommand('copy');
-    copyTip.style.display = 'block';
-    setTimeout(()=>copyTip.style.display='none',2000);
+    currentEmails = emails;
+    let dupCount = total - invalid - emails.length + (validate ? 0 : 0);
+    if (!removeDup) dupCount = 0;
+    else dupCount = total - invalid - emails.length;
+
+    updateStats(total, emails.length, emails.filter(isQQEmail).length, dupCount, invalid);
+    renderOutput();
 }
 
-clearBtn.onclick = ()=>{
-    input.value = '';
-    output.value = '';
-    copyTip.style.display = 'none';
+function updateStats(total, valid, qq, dup, invalid) {
+    $('statTotal').textContent = total;
+    $('statValid').textContent = valid;
+    $('statQQ').textContent = qq;
+    $('statDup').textContent = dup;
+    $('statInvalid').textContent = invalid;
 }
+
+function renderOutput() {
+    if (currentEmails.length === 0) {
+        $('output').value = '';
+        return;
+    }
+    let res = '';
+    switch (currentFormat) {
+        case 'line':
+            res = currentEmails.join('\n');
+            break;
+        case 'comma':
+            res = currentEmails.join(',');
+            break;
+        case 'php5':
+            res = '$all_emails = [\n';
+            for (let i = 0; i < currentEmails.length; i += 5) {
+                let slice = currentEmails.slice(i, i + 5).map(e => '"' + e + '"');
+                res += '    ' + slice.join(',') + ',\n';
+            }
+            res += '];';
+            break;
+        case 'php1':
+            res = '$all_emails = [\n';
+            currentEmails.forEach(e => { res += '    "' + e + '",\n'; });
+            res += '];';
+            break;
+        case 'json':
+            res = JSON.stringify(currentEmails, null, 2);
+            break;
+    }
+    $('output').value = res;
+}
+
+// 事件绑定
+$('btnTrans').onclick = process;
+$('btnClear').onclick = () => {
+    $('input').value = '';
+    $('output').value = '';
+    currentEmails = [];
+    updateStats(0,0,0,0,0);
+    $('copyTip').classList.remove('show');
+};
+
+$('btnCopy').onclick = async () => {
+    if (!currentEmails.length) return;
+    try {
+        await navigator.clipboard.writeText($('output').value);
+        $('copyTip').classList.add('show');
+        setTimeout(() => $('copyTip').classList.remove('show'), 2000);
+    } catch (e) {
+        $('output').select();
+        document.execCommand('copy');
+        $('copyTip').classList.add('show');
+        setTimeout(() => $('copyTip').classList.remove('show'), 2000);
+    }
+};
+
+// 格式切换
+document.querySelectorAll('.format-btn').forEach(btn => {
+    btn.onclick = () => {
+        document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFormat = btn.dataset.format;
+        renderOutput();
+    };
+});
+
+// 选项变化自动重新转换
+['autoConvert','removeDup','onlyQQ','validateEmail'].forEach(id => {
+    $(id).onchange = () => { if (currentEmails.length || $('input').value.trim()) process(); };
+});
+
+// 输入时实时转换（防抖）
+let timer;
+$('input').oninput = () => {
+    clearTimeout(timer);
+    timer = setTimeout(process, 500);
+};
 </script>
 </body>
 </html>
