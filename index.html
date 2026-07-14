@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>邮件群发系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; padding: 30px 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 28px; color: #1a1a2e; margin-bottom: 8px; }
+        .header p { color: #888; font-size: 14px; }
+        .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); padding: 24px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 500; color: #555; margin-bottom: 8px; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 12px 14px; border: 1px solid #e0e0e0; border-radius: 8px;
+            font-size: 14px; font-family: inherit; transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none; border-color: #69a7ff;
+        }
+        .form-group textarea { min-height: 200px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .btn {
+            display: inline-block; padding: 12px 28px; border-radius: 8px; border: none;
+            font-size: 15px; cursor: pointer; transition: all 0.2s; text-decoration: none;
+        }
+        .btn-primary { background: #69a7ff; color: #fff; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .actions { text-align: center; margin-top: 8px; }
+        .progress { display: none; margin-top: 20px; padding: 16px; background: #f0f7ff; border-radius: 8px; }
+        .progress.active { display: block; }
+        .progress-bar { height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
+        .progress-bar-inner { height: 100%; background: #69a7ff; width: 0%; transition: width 0.3s; }
+        .progress-text { font-size: 14px; color: #555; text-align: center; }
+        .results { display: none; margin-top: 20px; }
+        .results.active { display: block; }
+        .result-item { display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+        .result-item.success { color: #2e7d32; }
+        .result-item.fail { color: #c62828; }
+        .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
+        .alert.active { display: block; }
+        .alert-success { background: #e8f5e9; color: #2e7d32; }
+        .alert-error { background: #ffebee; color: #c62828; }
+        .footer { text-align: center; padding: 20px; color: #aaa; font-size: 13px; }
+        .footer a { color: #69a7ff; text-decoration: none; }
+        @media (max-width: 600px) {
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>邮件群发系统</h1>
+            <p>支持多账号轮询、模板发送、批量导入</p>
+        </div>
+
+        <div id="alert" class="alert"></div>
+
+        <div class="card">
+            <form id="sendForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>选择模板</label>
+                        <select id="template_id">
+                            <option value="0">不使用模板</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>选择分组</label>
+                        <select id="group_id">
+                            <option value="0">手动输入</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>收件人邮箱（每行一个）</label>
+                    <textarea id="recipients" placeholder="example1@qq.com
+example2@gmail.com
+..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>邮件标题</label>
+                    <input type="text" id="subject" placeholder="请输入邮件标题" required>
+                </div>
+
+                <div class="form-group">
+                    <label>邮件内容（支持HTML）</label>
+                    <textarea id="content" placeholder="<h1>Hello</h1><p>这是一封测试邮件</p>" required></textarea>
+                </div>
+
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary" id="submitBtn">开始发送</button>
+                </div>
+            </form>
+
+            <div id="progress" class="progress">
+                <div class="progress-bar"><div class="progress-bar-inner" id="progressBar"></div></div>
+                <div class="progress-text" id="progressText">准备发送...</div>
+            </div>
+
+            <div id="results" class="results">
+                <h3 style="font-size:15px;margin-bottom:10px;">发送结果</h3>
+                <div id="resultsList"></div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <a href="admin/" target="_blank">管理后台</a> |
+            <a href="zhuan.html" target="_blank">邮箱格式化工具</a>
+        </div>
+    </div>
+
+    <script>
+        // 加载模板和分组
+        async function loadOptions() {
+            try {
+                const [tRes, gRes] = await Promise.all([
+                    fetch('api/list.php?type=templates').then(r => r.json()),
+                    fetch('api/list.php?type=groups').then(r => r.json())
+                ]);
+                if (tRes.code === 0) {
+                    const sel = document.getElementById('template_id');
+                    tRes.data.forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t.id;
+                        opt.textContent = t.name;
+                        sel.appendChild(opt);
+                    });
+                }
+                if (gRes.code === 0) {
+                    const sel = document.getElementById('group_id');
+                    gRes.data.forEach(g => {
+                        const opt = document.createElement('option');
+                        opt.value = g.id;
+                        opt.textContent = g.name;
+                        sel.appendChild(opt);
+                    });
+                }
+            } catch (e) {}
+        }
+
+        // 模板切换
+        document.getElementById('template_id').addEventListener('change', async function() {
+            const id = this.value;
+            if (id == 0) return;
+            try {
+                const res = await fetch('api/list.php?type=templates').then(r => r.json());
+                if (res.code === 0) {
+                    const t = res.data.find(x => x.id == id);
+                    if (t) {
+                        document.getElementById('subject').value = t.title;
+                        // 需要额外接口获取模板内容，简化处理：用户手动填充或使用模板ID发送
+                    }
+                }
+            } catch (e) {}
+        });
+
+        // 分组切换
+        document.getElementById('group_id').addEventListener('change', async function() {
+            const id = this.value;
+            const textarea = document.getElementById('recipients');
+            if (id == 0) {
+                textarea.value = '';
+                textarea.readOnly = false;
+                return;
+            }
+            try {
+                const res = await fetch('api/list.php?type=recipients&group_id=' + id).then(r => r.json());
+                if (res.code === 0) {
+                    textarea.value = res.data.map(r => r.email).join('\n');
+                    textarea.readOnly = true;
+                }
+            } catch (e) {}
+        });
+
+        // 发送表单
+        document.getElementById('sendForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const alert = document.getElementById('alert');
+            const progress = document.getElementById('progress');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const results = document.getElementById('results');
+            const resultsList = document.getElementById('resultsList');
+
+            alert.className = 'alert';
+            progress.classList.add('active');
+            results.classList.remove('active');
+            btn.disabled = true;
+            progressBar.style.width = '30%';
+            progressText.textContent = '正在发送...';
+
+            const formData = new FormData();
+            formData.append('recipients', document.getElementById('recipients').value);
+            formData.append('subject', document.getElementById('subject').value);
+            formData.append('content', document.getElementById('content').value);
+            formData.append('template_id', document.getElementById('template_id').value);
+            formData.append('group_id', document.getElementById('group_id').value);
+
+            try {
+                const res = await fetch('api/send.php', {
+                    method: 'POST',
+                    body: formData
+                }).then(r => r.json());
+
+                progressBar.style.width = '100%';
+
+                if (res.code === 0) {
+                    alert.className = 'alert alert-success active';
+                    alert.textContent = res.msg;
+                    progressText.textContent = `发送完成：成功 ${res.success} / ${res.total}`;
+
+                    resultsList.innerHTML = '';
+                    res.results.forEach(r => {
+                        const div = document.createElement('div');
+                        div.className = 'result-item ' + r.status;
+                        div.innerHTML = `<span>${r.email}</span><span>${r.status === 'success' ? '成功' : '失败'} ${r.error ? '(' + r.error + ')' : ''}</span>`;
+                        resultsList.appendChild(div);
+                    });
+                    results.classList.add('active');
+                } else {
+                    alert.className = 'alert alert-error active';
+                    alert.textContent = res.msg || '发送失败';
+                    progressText.textContent = '发送失败';
+                }
+            } catch (e) {
+                alert.className = 'alert alert-error active';
+                alert.textContent = '网络错误';
+                progressText.textContent = '发送失败';
+            }
+
+            btn.disabled = false;
+        });
+
+        loadOptions();
+    </script>
+</body>
+</html>
