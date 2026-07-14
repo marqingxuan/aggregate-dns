@@ -4,43 +4,44 @@ require __DIR__ . '/inc/head.php';
 requireLogin();
 $pageTitle = '黑名单管理';
 
+$prefix = defined('DB_PREFIX') ? DB_PREFIX : '';
 $msg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
+    $action = isset($_POST['action']) ? $_POST['action'] : '';
     if ($action === 'add') {
-        $email = trim($_POST['email'] ?? '');
-        $reason = trim($_POST['reason'] ?? '');
+        $email = trim(isset($_POST['email']) ? $_POST['email'] : '');
+        $reason = trim(isset($_POST['reason']) ? $_POST['reason'] : '');
         if ($email !== '') {
             try {
-                $stmt = $db->prepare("INSERT INTO blacklist (email, reason) VALUES (?, ?)");
-                $stmt->execute([$email, $reason]);
+                $stmt = $db->prepare("INSERT INTO {$prefix}blacklist (email, reason) VALUES (?, ?)");
+                $stmt->execute(array($email, $reason));
                 $msg = '黑名单添加成功';
             } catch (PDOException $e) {
                 $msg = '添加失败：该邮箱已在黑名单中';
             }
         }
     } elseif ($action === 'delete') {
-        $id = (int)($_POST['id'] ?? 0);
+        $id = (int)(isset($_POST['id']) ? $_POST['id'] : 0);
         if ($id > 0) {
-            $stmt = $db->prepare("DELETE FROM blacklist WHERE id = ?");
-            $stmt->execute([$id]);
+            $stmt = $db->prepare("DELETE FROM {$prefix}blacklist WHERE id = ?");
+            $stmt->execute(array($id));
             $msg = '黑名单删除成功';
         }
     }
 }
 
 // 搜索
-$searchEmail = trim($_GET['email'] ?? '');
+$searchEmail = trim(isset($_GET['email']) ? $_GET['email'] : '');
 
-$where = [];
-$params = [];
+$where = array();
+$params = array();
 if ($searchEmail !== '') {
     $where[] = "email LIKE ?";
     $params[] = '%' . $searchEmail . '%';
 }
 
-$sql = "SELECT * FROM blacklist";
+$sql = "SELECT * FROM {$prefix}blacklist";
 if (!empty($where)) {
     $sql .= " WHERE " . implode(" AND ", $where);
 }
@@ -85,7 +86,7 @@ $list = $stmt->fetchAll();
             <tr>
                 <td><?php echo (int)$item['id']; ?></td>
                 <td><?php echo htmlspecialchars($item['email']); ?></td>
-                <td><?php echo htmlspecialchars($item['reason'] ?: '-'); ?></td>
+                <td><?php echo htmlspecialchars(!empty($item['reason']) ? $item['reason'] : '-'); ?></td>
                 <td><?php echo htmlspecialchars($item['created_at']); ?></td>
                 <td>
                     <form method="post" style="display:inline;" onsubmit="return confirm('确定从黑名单移除该邮箱？');">

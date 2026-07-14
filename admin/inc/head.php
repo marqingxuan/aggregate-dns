@@ -7,7 +7,7 @@ session_start();
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo $pageTitle ?? '管理后台'; ?> - 邮件群发系统</title>
+    <title><?php echo isset($pageTitle) ? $pageTitle : '管理后台'; ?> - 邮件群发系统</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f5f7fa; color: #333; font-size: 14px; }
@@ -90,7 +90,7 @@ session_start();
     </div>
     <div class="main">
         <div class="topbar">
-            <div class="topbar-title"><?php echo $pageTitle ?? '管理后台'; ?></div>
+            <div class="topbar-title"><?php echo isset($pageTitle) ? $pageTitle : '管理后台'; ?></div>
             <div class="topbar-actions">
                 <a href="../index.html" target="_blank">前台首页</a>
                 <a href="logout.php">退出</a>

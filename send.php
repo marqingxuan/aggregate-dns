@@ -1,9 +1,9 @@
 <?php
 require_once 'config.php';
 
-$title = trim($_POST['title'] ?? '');
-$content = trim($_POST['content'] ?? '');
-$emails_raw = trim($_POST['emails'] ?? '');
+$title = trim(isset($_POST['title']) ? $_POST['title'] : '');
+$content = trim(isset($_POST['content']) ? $_POST['content'] : '');
+$emails_raw = trim(isset($_POST['emails']) ? $_POST['emails'] : '');
 
 // 校验基本输入
 if(empty($title) || empty($content) || empty($emails_raw)){

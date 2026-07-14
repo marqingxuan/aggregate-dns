@@ -3,14 +3,15 @@ require __DIR__ . '/../data/db.php';
 require __DIR__ . '/inc/head.php';
 requireLogin();
 $pageTitle = '仪表盘';
+$prefix = defined('DB_PREFIX') ? DB_PREFIX : '';
 $stats = getStats($db);
 
 // 最近7天发送趋势
-$stmt = $db->query("SELECT date(send_time) as day, COUNT(*) as count FROM logs WHERE status = 'success' AND send_time >= date('now', '-6 days') GROUP BY date(send_time) ORDER BY day");
+$stmt = $db->query("SELECT DATE(send_time) as day, COUNT(*) as count FROM {$prefix}logs WHERE status = 'success' AND send_time >= " . sql_date_sub(6) . " GROUP BY DATE(send_time) ORDER BY day");
 $chartData = $stmt->fetchAll();
 
 // 最近10条日志
-$stmt = $db->query("SELECT l.*, t.name as template_name FROM logs l LEFT JOIN templates t ON l.template_id = t.id ORDER BY l.id DESC LIMIT 10");
+$stmt = $db->query("SELECT l.*, t.name as template_name FROM {$prefix}logs l LEFT JOIN {$prefix}templates t ON l.template_id = t.id ORDER BY l.id DESC LIMIT 10");
 $recentLogs = $stmt->fetchAll();
 ?>
 
@@ -51,10 +52,10 @@ $recentLogs = $stmt->fetchAll();
             <?php foreach ($recentLogs as $log): ?>
             <tr>
                 <td><?php echo htmlspecialchars($log['recipient']); ?></td>
-                <td><?php echo htmlspecialchars($log['template_name'] ?: '-'); ?></td>
+                <td><?php echo htmlspecialchars(!empty($log['template_name']) ? $log['template_name'] : '-'); ?></td>
                 <td><span class="badge badge-<?php echo $log['status'] == 'success' ? 'success' : 'danger'; ?>"><?php echo $log['status'] == 'success' ? '成功' : '失败'; ?></span></td>
                 <td><?php echo $log['send_time']; ?></td>
-                <td style="color:#999;font-size:12px;"><?php echo htmlspecialchars($log['error'] ?: '-'); ?></td>
+                <td style="color:#999;font-size:12px;"><?php echo htmlspecialchars(!empty($log['error']) ? $log['error'] : '-'); ?></td>
             </tr>
             <?php endforeach; ?>
         </tbody>

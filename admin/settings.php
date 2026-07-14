@@ -7,10 +7,10 @@ $pageTitle = '系统设置';
 $msg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $site_name = trim($_POST['site_name'] ?? '');
-    $send_interval = (int)($_POST['send_interval'] ?? 5);
-    $batch_size = (int)($_POST['batch_size'] ?? 10);
-    $retry_times = (int)($_POST['retry_times'] ?? 3);
+    $site_name = trim(isset($_POST['site_name']) ? $_POST['site_name'] : '');
+    $send_interval = (int)(isset($_POST['send_interval']) ? $_POST['send_interval'] : 5);
+    $batch_size = (int)(isset($_POST['batch_size']) ? $_POST['batch_size'] : 10);
+    $retry_times = (int)(isset($_POST['retry_times']) ? $_POST['retry_times'] : 3);
 
     setSetting($db, 'site_name', $site_name);
     setSetting($db, 'send_interval', (string)$send_interval);

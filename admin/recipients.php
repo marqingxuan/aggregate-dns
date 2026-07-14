@@ -4,56 +4,58 @@ require __DIR__ . '/inc/head.php';
 requireLogin();
 $pageTitle = '收件人管理';
 
+$prefix = defined('DB_PREFIX') ? DB_PREFIX : '';
 $msg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
+    $action = isset($_POST['action']) ? $_POST['action'] : '';
     if ($action === 'add') {
-        $email = trim($_POST['email'] ?? '');
-        $name = trim($_POST['name'] ?? '');
-        $group_id = (int)($_POST['group_id'] ?? 0);
-        $status = (int)($_POST['status'] ?? 1);
+        $email = trim(isset($_POST['email']) ? $_POST['email'] : '');
+        $name = trim(isset($_POST['name']) ? $_POST['name'] : '');
+        $group_id = (int)(isset($_POST['group_id']) ? $_POST['group_id'] : 0);
+        $status = (int)(isset($_POST['status']) ? $_POST['status'] : 1);
         if ($email !== '') {
-            $stmt = $db->prepare("INSERT INTO recipients (email, name, group_id, status) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$email, $name, $group_id, $status]);
+            $stmt = $db->prepare("INSERT INTO {$prefix}recipients (email, name, group_id, status) VALUES (?, ?, ?, ?)");
+            $stmt->execute(array($email, $name, $group_id, $status));
             $msg = '收件人添加成功';
         }
     } elseif ($action === 'edit') {
-        $id = (int)($_POST['id'] ?? 0);
-        $email = trim($_POST['email'] ?? '');
-        $name = trim($_POST['name'] ?? '');
-        $group_id = (int)($_POST['group_id'] ?? 0);
-        $status = (int)($_POST['status'] ?? 1);
+        $id = (int)(isset($_POST['id']) ? $_POST['id'] : 0);
+        $email = trim(isset($_POST['email']) ? $_POST['email'] : '');
+        $name = trim(isset($_POST['name']) ? $_POST['name'] : '');
+        $group_id = (int)(isset($_POST['group_id']) ? $_POST['group_id'] : 0);
+        $status = (int)(isset($_POST['status']) ? $_POST['status'] : 1);
         if ($id > 0 && $email !== '') {
-            $stmt = $db->prepare("UPDATE recipients SET email = ?, name = ?, group_id = ?, status = ? WHERE id = ?");
-            $stmt->execute([$email, $name, $group_id, $status, $id]);
+            $stmt = $db->prepare("UPDATE {$prefix}recipients SET email = ?, name = ?, group_id = ?, status = ? WHERE id = ?");
+            $stmt->execute(array($email, $name, $group_id, $status, $id));
             $msg = '收件人更新成功';
         }
     } elseif ($action === 'delete') {
-        $id = (int)($_POST['id'] ?? 0);
+        $id = (int)(isset($_POST['id']) ? $_POST['id'] : 0);
         if ($id > 0) {
-            $stmt = $db->prepare("DELETE FROM recipients WHERE id = ?");
-            $stmt->execute([$id]);
+            $stmt = $db->prepare("DELETE FROM {$prefix}recipients WHERE id = ?");
+            $stmt->execute(array($id));
             $msg = '收件人删除成功';
         }
     } elseif ($action === 'toggle') {
-        $id = (int)($_POST['id'] ?? 0);
+        $id = (int)(isset($_POST['id']) ? $_POST['id'] : 0);
         if ($id > 0) {
-            $stmt = $db->prepare("UPDATE recipients SET status = CASE WHEN status = 1 THEN 0 ELSE 1 END WHERE id = ?");
-            $stmt->execute([$id]);
+            $stmt = $db->prepare("UPDATE {$prefix}recipients SET status = CASE WHEN status = 1 THEN 0 ELSE 1 END WHERE id = ?");
+            $stmt->execute(array($id));
             $msg = '状态切换成功';
         }
     } elseif ($action === 'import') {
-        $group_id = (int)($_POST['import_group_id'] ?? 0);
-        $lines = trim($_POST['import_emails'] ?? '');
+        $group_id = (int)(isset($_POST['import_group_id']) ? $_POST['import_group_id'] : 0);
+        $lines = trim(isset($_POST['import_emails']) ? $_POST['import_emails'] : '');
         if ($lines !== '') {
             $emails = preg_split('/\r\n|\r|\n/', $lines);
             $inserted = 0;
-            $stmt = $db->prepare("INSERT OR IGNORE INTO recipients (email, group_id, status) VALUES (?, ?, 1)");
+            $sql = sql_insert_ignore("{$prefix}recipients", "email, group_id, status") . " VALUES (?, ?, 1)";
+            $stmt = $db->prepare($sql);
             foreach ($emails as $line) {
                 $email = trim($line);
                 if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $stmt->execute([$email, $group_id]);
+                    $stmt->execute(array($email, $group_id));
                     $inserted++;
                 }
             }
@@ -63,12 +65,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // 搜索条件
-$searchEmail = trim($_GET['email'] ?? '');
-$searchName = trim($_GET['name'] ?? '');
-$searchGroup = (int)($_GET['group_id'] ?? 0);
+$searchEmail = trim(isset($_GET['email']) ? $_GET['email'] : '');
+$searchName = trim(isset($_GET['name']) ? $_GET['name'] : '');
+$searchGroup = (int)(isset($_GET['group_id']) ? $_GET['group_id'] : 0);
 
-$where = [];
-$params = [];
+$where = array();
+$params = array();
 if ($searchEmail !== '') {
     $where[] = "r.email LIKE ?";
     $params[] = '%' . $searchEmail . '%';
@@ -82,7 +84,7 @@ if ($searchGroup > 0) {
     $params[] = $searchGroup;
 }
 
-$sql = "SELECT r.*, g.name as group_name FROM recipients r LEFT JOIN groups g ON r.group_id = g.id";
+$sql = "SELECT r.*, g.name as group_name FROM {$prefix}recipients r LEFT JOIN {$prefix}groups g ON r.group_id = g.id";
 if (!empty($where)) {
     $sql .= " WHERE " . implode(" AND ", $where);
 }
@@ -93,7 +95,7 @@ $stmt->execute($params);
 $recipients = $stmt->fetchAll();
 
 // 获取分组列表
-$groups = $db->query("SELECT id, name FROM groups ORDER BY id DESC")->fetchAll();
+$groups = $db->query("SELECT id, name FROM {$prefix}groups ORDER BY id DESC")->fetchAll();
 ?>
 
 <?php if ($msg): ?>
@@ -142,8 +144,8 @@ $groups = $db->query("SELECT id, name FROM groups ORDER BY id DESC")->fetchAll()
             <tr>
                 <td><?php echo (int)$r['id']; ?></td>
                 <td><?php echo htmlspecialchars($r['email']); ?></td>
-                <td><?php echo htmlspecialchars($r['name'] ?: '-'); ?></td>
-                <td><?php echo htmlspecialchars($r['group_name'] ?: '未分组'); ?></td>
+                <td><?php echo htmlspecialchars(!empty($r['name']) ? $r['name'] : '-'); ?></td>
+                <td><?php echo htmlspecialchars(!empty($r['group_name']) ? $r['group_name'] : '未分组'); ?></td>
                 <td>
                     <?php if ($r['status'] == 1): ?>
                     <span class="badge badge-success">启用</span>
@@ -153,7 +155,7 @@ $groups = $db->query("SELECT id, name FROM groups ORDER BY id DESC")->fetchAll()
                 </td>
                 <td><?php echo htmlspecialchars($r['created_at']); ?></td>
                 <td>
-                    <button class="btn btn-sm btn-primary" onclick="editRecipient(<?php echo (int)$r['id']; ?>, '<?php echo htmlspecialchars($r['email'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($r['name'] ?? '', ENT_QUOTES); ?>', <?php echo (int)($r['group_id'] ?? 0); ?>, <?php echo (int)$r['status']; ?>)">编辑</button>
+                    <button class="btn btn-sm btn-primary" onclick="editRecipient(<?php echo (int)$r['id']; ?>, '<?php echo htmlspecialchars($r['email'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars(isset($r['name']) ? $r['name'] : '', ENT_QUOTES); ?>', <?php echo (int)(isset($r['group_id']) ? $r['group_id'] : 0); ?>, <?php echo (int)$r['status']; ?>)">编辑</button>
                     <form method="post" style="display:inline;">
                         <input type="hidden" name="action" value="toggle">
                         <input type="hidden" name="id" value="<?php echo (int)$r['id']; ?>">

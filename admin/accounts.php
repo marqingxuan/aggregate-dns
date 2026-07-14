@@ -4,15 +4,16 @@ require __DIR__ . '/inc/head.php';
 requireLogin();
 $pageTitle = 'SMTP账号管理';
 
+$prefix = defined('DB_PREFIX') ? DB_PREFIX : '';
 $alert = '';
 $alertType = 'success';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
+    $action = isset($_POST['action']) ? $_POST['action'] : '';
     try {
         if ($action === 'add') {
-            $stmt = $db->prepare("INSERT INTO accounts (host, port, user, pwd, from_name, from_addr, daily_limit, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([
+            $stmt = $db->prepare("INSERT INTO {$prefix}accounts (host, port, user, pwd, from_name, from_addr, daily_limit, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute(array(
                 $_POST['host'],
                 $_POST['port'],
                 $_POST['user'],
@@ -21,11 +22,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_POST['from_addr'],
                 $_POST['daily_limit'],
                 $_POST['status']
-            ]);
+            ));
             $alert = '添加成功';
         } elseif ($action === 'edit') {
-            $stmt = $db->prepare("UPDATE accounts SET host=?, port=?, user=?, pwd=?, from_name=?, from_addr=?, daily_limit=?, status=? WHERE id=?");
-            $stmt->execute([
+            $stmt = $db->prepare("UPDATE {$prefix}accounts SET host=?, port=?, user=?, pwd=?, from_name=?, from_addr=?, daily_limit=?, status=? WHERE id=?");
+            $stmt->execute(array(
                 $_POST['host'],
                 $_POST['port'],
                 $_POST['user'],
@@ -35,15 +36,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_POST['daily_limit'],
                 $_POST['status'],
                 $_POST['id']
-            ]);
+            ));
             $alert = '修改成功';
         } elseif ($action === 'delete') {
-            $stmt = $db->prepare("DELETE FROM accounts WHERE id=?");
-            $stmt->execute([$_POST['id']]);
+            $stmt = $db->prepare("DELETE FROM {$prefix}accounts WHERE id=?");
+            $stmt->execute(array($_POST['id']));
             $alert = '删除成功';
         } elseif ($action === 'toggle') {
-            $stmt = $db->prepare("UPDATE accounts SET status = CASE WHEN status=1 THEN 0 ELSE 1 END WHERE id=?");
-            $stmt->execute([$_POST['id']]);
+            $stmt = $db->prepare("UPDATE {$prefix}accounts SET status = CASE WHEN status=1 THEN 0 ELSE 1 END WHERE id=?");
+            $stmt->execute(array($_POST['id']));
             $alert = '状态已更新';
         }
     } catch (Exception $e) {
@@ -52,9 +53,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$search = $_GET['search'] ?? '';
-$sql = "SELECT * FROM accounts WHERE 1=1";
-$params = [];
+$search = isset($_GET['search']) ? $_GET['search'] : '';
+$sql = "SELECT * FROM {$prefix}accounts WHERE 1=1";
+$params = array();
 if ($search !== '') {
     $sql .= " AND (host LIKE ? OR user LIKE ?)";
     $params[] = "%$search%";
@@ -66,8 +67,8 @@ $stmt->execute($params);
 $accounts = $stmt->fetchAll();
 
 // 获取今日各账号发送统计
-$todayStats = [];
-$stmt = $db->query("SELECT account_id, COUNT(*) as cnt FROM logs WHERE status='success' AND date(send_time) = date('now') GROUP BY account_id");
+$todayStats = array();
+$stmt = $db->query("SELECT account_id, COUNT(*) as cnt FROM {$prefix}logs WHERE status='success' AND DATE(send_time) = " . sql_today() . " GROUP BY account_id");
 foreach ($stmt->fetchAll() as $row) {
     $todayStats[$row['account_id']] = $row['cnt'];
 }
@@ -105,14 +106,14 @@ foreach ($stmt->fetchAll() as $row) {
         </thead>
         <tbody>
             <?php foreach ($accounts as $acc): ?>
-            <?php $todaySent = $todayStats[$acc['id']] ?? 0; ?>
+            <?php $todaySent = isset($todayStats[$acc['id']]) ? $todayStats[$acc['id']] : 0; ?>
             <tr>
                 <td><?php echo htmlspecialchars($acc['id']); ?></td>
                 <td><?php echo htmlspecialchars($acc['host']); ?></td>
                 <td><?php echo htmlspecialchars($acc['port']); ?></td>
                 <td><?php echo htmlspecialchars($acc['user']); ?></td>
-                <td><?php echo htmlspecialchars($acc['from_name'] ?: '-'); ?></td>
-                <td><?php echo htmlspecialchars($acc['from_addr'] ?: '-'); ?></td>
+                <td><?php echo htmlspecialchars(!empty($acc['from_name']) ? $acc['from_name'] : '-'); ?></td>
+                <td><?php echo htmlspecialchars(!empty($acc['from_addr']) ? $acc['from_addr'] : '-'); ?></td>
                 <td><?php echo $todaySent; ?> / <?php echo htmlspecialchars($acc['daily_limit']); ?></td>
                 <td>
                     <?php if ($acc['status'] == 1): ?>

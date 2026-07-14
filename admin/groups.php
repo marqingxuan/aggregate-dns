@@ -4,37 +4,38 @@ require __DIR__ . '/inc/head.php';
 requireLogin();
 $pageTitle = '收件人分组管理';
 
+$prefix = defined('DB_PREFIX') ? DB_PREFIX : '';
 $msg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
+    $action = isset($_POST['action']) ? $_POST['action'] : '';
     if ($action === 'add') {
-        $name = trim($_POST['name'] ?? '');
+        $name = trim(isset($_POST['name']) ? $_POST['name'] : '');
         if ($name !== '') {
-            $stmt = $db->prepare("INSERT INTO groups (name) VALUES (?)");
-            $stmt->execute([$name]);
+            $stmt = $db->prepare("INSERT INTO {$prefix}groups (name) VALUES (?)");
+            $stmt->execute(array($name));
             $msg = '分组添加成功';
         }
     } elseif ($action === 'edit') {
-        $id = (int)($_POST['id'] ?? 0);
-        $name = trim($_POST['name'] ?? '');
+        $id = (int)(isset($_POST['id']) ? $_POST['id'] : 0);
+        $name = trim(isset($_POST['name']) ? $_POST['name'] : '');
         if ($id > 0 && $name !== '') {
-            $stmt = $db->prepare("UPDATE groups SET name = ? WHERE id = ?");
-            $stmt->execute([$name, $id]);
+            $stmt = $db->prepare("UPDATE {$prefix}groups SET name = ? WHERE id = ?");
+            $stmt->execute(array($name, $id));
             $msg = '分组更新成功';
         }
     } elseif ($action === 'delete') {
-        $id = (int)($_POST['id'] ?? 0);
+        $id = (int)(isset($_POST['id']) ? $_POST['id'] : 0);
         if ($id > 0) {
-            $stmt = $db->prepare("DELETE FROM groups WHERE id = ?");
-            $stmt->execute([$id]);
+            $stmt = $db->prepare("DELETE FROM {$prefix}groups WHERE id = ?");
+            $stmt->execute(array($id));
             $msg = '分组删除成功';
         }
     }
 }
 
 // 查询分组列表及收件人数量
-$stmt = $db->query("SELECT g.*, (SELECT COUNT(*) FROM recipients WHERE group_id = g.id) as recipient_count FROM groups g ORDER BY g.id DESC");
+$stmt = $db->query("SELECT g.*, (SELECT COUNT(*) FROM {$prefix}recipients WHERE group_id = g.id) as recipient_count FROM {$prefix}groups g ORDER BY g.id DESC");
 $groups = $stmt->fetchAll();
 ?>
 

@@ -4,32 +4,33 @@ require __DIR__ . '/inc/head.php';
 requireLogin();
 $pageTitle = '邮件模板管理';
 
+$prefix = defined('DB_PREFIX') ? DB_PREFIX : '';
 $alert = '';
 $alertType = 'success';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
+    $action = isset($_POST['action']) ? $_POST['action'] : '';
     try {
         if ($action === 'add') {
-            $stmt = $db->prepare("INSERT INTO templates (name, title, content) VALUES (?, ?, ?)");
-            $stmt->execute([
+            $stmt = $db->prepare("INSERT INTO {$prefix}templates (name, title, content) VALUES (?, ?, ?)");
+            $stmt->execute(array(
                 $_POST['name'],
                 $_POST['title'],
                 $_POST['content']
-            ]);
+            ));
             $alert = '添加成功';
         } elseif ($action === 'edit') {
-            $stmt = $db->prepare("UPDATE templates SET name=?, title=?, content=? WHERE id=?");
-            $stmt->execute([
+            $stmt = $db->prepare("UPDATE {$prefix}templates SET name=?, title=?, content=? WHERE id=?");
+            $stmt->execute(array(
                 $_POST['name'],
                 $_POST['title'],
                 $_POST['content'],
                 $_POST['id']
-            ]);
+            ));
             $alert = '修改成功';
         } elseif ($action === 'delete') {
-            $stmt = $db->prepare("DELETE FROM templates WHERE id=?");
-            $stmt->execute([$_POST['id']]);
+            $stmt = $db->prepare("DELETE FROM {$prefix}templates WHERE id=?");
+            $stmt->execute(array($_POST['id']));
             $alert = '删除成功';
         }
     } catch (Exception $e) {
@@ -38,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$stmt = $db->query("SELECT * FROM templates ORDER BY id DESC");
+$stmt = $db->query("SELECT * FROM {$prefix}templates ORDER BY id DESC");
 $templates = $stmt->fetchAll();
 ?>
 

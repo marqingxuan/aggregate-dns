@@ -4,18 +4,19 @@ require __DIR__ . '/inc/head.php';
 requireLogin();
 $pageTitle = '发送日志';
 
+$prefix = defined('DB_PREFIX') ? DB_PREFIX : '';
 $alert = '';
 $alertType = 'success';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
+    $action = isset($_POST['action']) ? $_POST['action'] : '';
     try {
         if ($action === 'delete') {
-            $stmt = $db->prepare("DELETE FROM logs WHERE id=?");
-            $stmt->execute([$_POST['id']]);
+            $stmt = $db->prepare("DELETE FROM {$prefix}logs WHERE id=?");
+            $stmt->execute(array($_POST['id']));
             $alert = '删除成功';
         } elseif ($action === 'clear') {
-            $db->exec("DELETE FROM logs");
+            $db->exec("DELETE FROM {$prefix}logs");
             $alert = '日志已清空';
         }
     } catch (Exception $e) {
@@ -24,17 +25,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$page = max(1, intval($_GET['page'] ?? 1));
+$page = max(1, intval(isset($_GET['page']) ? $_GET['page'] : 1));
 $perPage = 20;
 $offset = ($page - 1) * $perPage;
 
-$searchRecipient = $_GET['recipient'] ?? '';
-$searchStatus = $_GET['status'] ?? '';
-$searchDateFrom = $_GET['date_from'] ?? '';
-$searchDateTo = $_GET['date_to'] ?? '';
+$searchRecipient = isset($_GET['recipient']) ? $_GET['recipient'] : '';
+$searchStatus = isset($_GET['status']) ? $_GET['status'] : '';
+$searchDateFrom = isset($_GET['date_from']) ? $_GET['date_from'] : '';
+$searchDateTo = isset($_GET['date_to']) ? $_GET['date_to'] : '';
 
 $where = "WHERE 1=1";
-$params = [];
+$params = array();
 if ($searchRecipient !== '') {
     $where .= " AND l.recipient LIKE ?";
     $params[] = "%$searchRecipient%";
@@ -44,15 +45,15 @@ if ($searchStatus !== '') {
     $params[] = $searchStatus;
 }
 if ($searchDateFrom !== '') {
-    $where .= " AND date(l.send_time) >= ?";
+    $where .= " AND DATE(l.send_time) >= ?";
     $params[] = $searchDateFrom;
 }
 if ($searchDateTo !== '') {
-    $where .= " AND date(l.send_time) <= ?";
+    $where .= " AND DATE(l.send_time) <= ?";
     $params[] = $searchDateTo;
 }
 
-$countStmt = $db->prepare("SELECT COUNT(*) FROM logs l $where");
+$countStmt = $db->prepare("SELECT COUNT(*) FROM {$prefix}logs l $where");
 $countStmt->execute($params);
 $total = (int)$countStmt->fetchColumn();
 $totalPages = (int)ceil($total / $perPage);
@@ -60,12 +61,12 @@ if ($totalPages < 1) $totalPages = 1;
 if ($page > $totalPages) $page = $totalPages;
 $offset = ($page - 1) * $perPage;
 
-$sql = "SELECT l.*, t.name as template_name, a.user as account_user 
-        FROM logs l 
-        LEFT JOIN templates t ON l.template_id = t.id 
-        LEFT JOIN accounts a ON l.account_id = a.id 
-        $where 
-        ORDER BY l.id DESC 
+$sql = "SELECT l.*, t.name as template_name, a.user as account_user
+        FROM {$prefix}logs l
+        LEFT JOIN {$prefix}templates t ON l.template_id = t.id
+        LEFT JOIN {$prefix}accounts a ON l.account_id = a.id
+        $where
+        ORDER BY l.id DESC
         LIMIT $perPage OFFSET $offset";
 $stmt = $db->prepare($sql);
 $stmt->execute($params);
@@ -76,7 +77,7 @@ function buildUrl($pageNum, $params) {
     return '?' . http_build_query($params);
 }
 
-$queryParams = [];
+$queryParams = array();
 if ($searchRecipient !== '') $queryParams['recipient'] = $searchRecipient;
 if ($searchStatus !== '') $queryParams['status'] = $searchStatus;
 if ($searchDateFrom !== '') $queryParams['date_from'] = $searchDateFrom;
@@ -126,8 +127,8 @@ if ($searchDateTo !== '') $queryParams['date_to'] = $searchDateTo;
             <tr>
                 <td><?php echo htmlspecialchars($log['id']); ?></td>
                 <td><?php echo htmlspecialchars($log['recipient']); ?></td>
-                <td><?php echo htmlspecialchars($log['template_name'] ?: '-'); ?></td>
-                <td><?php echo htmlspecialchars($log['account_user'] ?: '-'); ?></td>
+                <td><?php echo htmlspecialchars(!empty($log['template_name']) ? $log['template_name'] : '-'); ?></td>
+                <td><?php echo htmlspecialchars(!empty($log['account_user']) ? $log['account_user'] : '-'); ?></td>
                 <td>
                     <?php if ($log['status'] === 'success'): ?>
                         <span class="badge badge-success">成功</span>
@@ -135,9 +136,9 @@ if ($searchDateTo !== '') $queryParams['date_to'] = $searchDateTo;
                         <span class="badge badge-danger">失败</span>
                     <?php endif; ?>
                 </td>
-                <td style="color:#999;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo htmlspecialchars($log['error'] ?: '-'); ?></td>
+                <td style="color:#999;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo htmlspecialchars(!empty($log['error']) ? $log['error'] : '-'); ?></td>
                 <td><?php echo htmlspecialchars($log['send_time']); ?></td>
-                <td><?php echo htmlspecialchars($log['batch_id'] ?: '-'); ?></td>
+                <td><?php echo htmlspecialchars(!empty($log['batch_id']) ? $log['batch_id'] : '-'); ?></td>
                 <td>
                     <form method="post" style="display:inline;" onsubmit="return confirm('确定删除吗？')">
                         <input type="hidden" name="action" value="delete">
